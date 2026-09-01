@@ -1,0 +1,133 @@
+/* 阅读器更多设置弹窗。
+   本文件是 .adv-dialog* 样式唯一权威：定位/尺寸/主题/布局全部在此定义。 */
+.adv-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 97; background: rgba(20, 18, 16, .34);
+}
+.adv-dialog {
+  position: fixed; left: 50%; top: 50%; translate: -50% -50%; z-index: 98;
+  width: min(720px, 94vw); max-height: min(78vh, 860px);
+  background: var(--card); border: 1px solid var(--paper-3); border-radius: 20px;
+  box-shadow: 0 32px 80px -24px rgb(var(--shadow-color) / 50%);
+  display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+}
+.adv-dialog-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--paper-3);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.adv-dialog-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+/* 内容区：单列滚动流，col 分组平铺（保留 DOM 结构） */
+.adv-dialog .adv-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.adv-dialog .adv-dialog-col {
+  display: contents; /* 分组平铺进单列流，保留 DOM 结构 */
+}
+/* 单列下每行控件宽度充足：标签固定宽、控件撑满，杜绝挤压遮挡 */
+.adv-dialog .settings-panel-row {
+  min-height: 34px;
+  gap: 14px;
+}
+.adv-dialog .settings-panel-row .label {
+  width: 96px;
+  flex: none;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.adv-dialog .settings-panel-row .label.wide {
+  width: auto;
+  flex: 1;
+}
+.adv-dialog .seg { flex: 1; min-width: 0; }
+.adv-dialog .settings-panel-row .cslider { flex: 1; }
+.adv-dialog .settings-panel-hint {
+  margin: -2px 0 6px 110px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.adv-dialog .settings-panel-group {
+  margin: 14px 0 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--paper-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--ink-3);
+}
+.adv-dialog .settings-panel-group:first-child {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: none;
+}
+.adv-dialog .slots-row { align-items: center; }
+.adv-dialog .slots-group { display: flex; gap: 8px; flex: 1; min-width: 0; }
+.adv-dialog .slots-group label { min-width: 0; }
+.adv-dialog .css-row { align-items: stretch; }
+.adv-dialog .custom-css-input { width: 100%; }
+@media (max-width: 640px) {
+  .adv-dialog .settings-panel-row { flex-wrap: wrap; }
+  .adv-dialog .settings-panel-hint { margin-left: 0; }
+}
+
+/* v3 美化：分组吸顶 + 顶部锚点导航 + 行 hover 微交互 */
+.adv-anchor-nav {
+  flex: none;
+  display: flex; gap: 6px; overflow-x: auto;
+  padding: 8px 22px 6px;
+  border-bottom: 1px solid var(--paper-3);
+  scrollbar-width: none;
+}
+.adv-anchor-nav::-webkit-scrollbar { display: none; }
+.adv-anchor-nav button {
+  flex: none; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--paper-3);
+  background: var(--paper-2); color: var(--ink-3); font: inherit; font-size: 11.5px; font-weight: 600;
+  cursor: pointer; transition: color .15s ease, border-color .15s ease;
+}
+.adv-anchor-nav button:hover { color: var(--ink); border-color: var(--ink-4); }
+.adv-dialog .settings-panel-group {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--paper); margin: 12px -22px 6px; padding: 9px 22px 7px;
+  border-top: 1px solid var(--paper-3); border-bottom: none;
+  font-size: 11.5px; color: var(--ink-2);
+}
+.adv-dialog .settings-panel-row { transition: background .15s ease; border-radius: 10px; padding: 3px 6px; margin: 0 -6px; }
+.adv-dialog .settings-panel-row:hover { background: var(--paper-2); }
+
+/* v4 美化：分组头色块 + 滑块/分段控件润色 */
+.adv-dialog .settings-panel-group {
+  position: sticky; top: 0; z-index: 2;
+  margin: 16px -22px 8px; padding: 10px 22px 8px;
+  background: linear-gradient(to right, var(--paper-2), var(--paper));
+  border-top: 1px solid var(--paper-3);
+  font-size: 12px; color: var(--ink-2); letter-spacing: .14em;
+}
+.adv-dialog .settings-panel-group::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 3px; background: var(--signal, #b45309); margin-right: 8px; vertical-align: 1px; }
+.adv-dialog .seg button { border-radius: 9px; }
+.adv-dialog-head { padding: 16px 24px 14px; }
+.adv-dialog-scroll { padding: 16px 24px 24px; }
+
+/* WordWise 标注主色：预设色板 + 自定义取色器 */
+.ww-color-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.ww-swatch {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; padding: 0; transition: transform .12s ease, border-color .12s ease;
+}
+.ww-swatch:hover { transform: scale(1.12); }
+.ww-swatch[data-active='true'] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 18%, transparent); }
+.ww-color-input { width: 26px; height: 22px; padding: 0; border: 1px solid var(--paper-3); border-radius: 6px; background: none; cursor: pointer; }

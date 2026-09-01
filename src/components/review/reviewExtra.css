@@ -1,0 +1,275 @@
+/* 校对工作台扩展样式：横向分页模式 + 目录管理面板。
+   沿用全局 design tokens（--card/--paper-3/--ink-3 等）与 .iconbtn/.settings-select。 */
+
+/* ── 布局滑动式分段控件：滑块 thumb 平移，选中项墨色 ── */
+.revlayout-ctl {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--paper-3);
+  border-radius: 11px;
+  background: var(--paper-2, var(--card));
+}
+.revlayout-ctl-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 1px 4px rgba(20, 20, 18, 0.14);
+  transition: transform 0.28s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+.revlayout-ctl[data-active='1'] .revlayout-ctl-thumb {
+  transform: translateX(100%);
+}
+.revlayout-ctl button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 78px;
+  height: 28px;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+.revlayout-ctl button.on { color: var(--ink); }
+
+/* ── 横向分页模式 ── */
+.revpaged {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+.revpaged .revseg {
+  flex: 1;
+}
+.revpaged-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--paper-3);
+  margin-top: 6px;
+}
+.revpaged-nav .iconbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.revpaged-indicator {
+  font-size: 12px;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+  min-width: 150px;
+  text-align: center;
+}
+
+/* ── 目录管理面板（校对侧栏，无边界设计：无卡框、无描边、融入背景） ── */
+.toc-editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* 锁在 250px 侧栏内，内容不得撑破 */
+}
+.toc-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px 10px;
+}
+.toc-editor-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.toc-editor-hint {
+  flex: 1;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.toc-editor-body {
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.toc-editor-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+}
+.toc-editor-row:hover {
+  background: var(--paper-2, rgba(0, 0, 0, 0.03));
+}
+.toc-editor-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toc-editor-added-tag {
+  font-style: normal;
+  font-size: 10px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(56, 132, 255, 0.14);
+  color: #3884ff;
+  vertical-align: 1px;
+}
+.toc-editor-page {
+  font-style: normal;
+  font-size: 10.5px;
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.toc-editor-row-actions {
+  display: inline-flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.toc-editor-row:hover .toc-editor-row-actions,
+.toc-editor-row:focus-within .toc-editor-row-actions {
+  opacity: 1;
+}
+.toc-editor-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--paper-3);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  outline: none;
+}
+/* 无边界设计：聚焦不改边框（全局规则仅背景微亮），不产生高亮描边 */
+.toc-editor-foot {
+  padding: 10px 0 0;
+}
+.toc-editor-addform {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toc-editor-addform .settings-select {
+  width: 100%;
+}
+/* 页码选择器：两行布局适配 250px 侧栏（行一控件+指示，行二全宽滑条），绝不溢出 */
+.toc-editor-pagerow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.toc-editor-pageinputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.toc-editor-pagerow em {
+  flex: 1;
+  text-align: right;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.toc-editor-addactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.toc-editor-addactions .btn.sm {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+/* ── 侧栏 tab + 问题列表 + 跳转高亮 ── */
+.revside-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+/* 无边界设计：侧栏功能区不再套卡片，以标题+留白分层（去除卡框投影与多余边距） */
+.revside-section { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px; }
+.revissue { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--paper-3); background: var(--paper-2); cursor: pointer; text-align: left; font: inherit; transition: background .15s; }
+.revissue:hover { background: var(--paper-3); }
+.revissue-rule { font-size: 10.5px; font-weight: 750; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; }
+.rule-untranslated { background: rgba(224,88,88,.16); color: #a03434; }
+.rule-residual { background: rgba(240,170,64,.18); color: #7a580e; }
+.rule-digits { background: rgba(90,140,220,.16); color: #2f5288; }
+.rule-newlines { background: rgba(140,120,200,.16); color: #4e3d74; }
+.rule-terminology { background: rgba(80,160,140,.18); color: #275e4f; }
+.revissue-detail { font-size: 12px; color: var(--ink-3); width: 100%; }
+.revseg.flash { animation: revflash 2.2s ease; }
+@keyframes revflash {
+  0% { box-shadow: 0 0 0 3px rgba(180,83,9,.55); background: rgba(180,83,9,.08); }
+  70% { box-shadow: 0 0 0 3px rgba(180,83,9,.4); background: rgba(180,83,9,.06); }
+  100% { box-shadow: none; background: none; }
+}
+
+/* ── 段级 hover 操作：纯图标按钮，tooltip 承载语义 ── */
+.seg-actions {
+  display: inline-flex; gap: 5px; margin-left: auto; align-self: flex-start;
+  opacity: 0; transition: opacity .16s var(--ease-out, ease-out);
+  flex-shrink: 0;
+}
+.revseg:hover .seg-actions, .seg-actions:focus-within { opacity: 1; }
+.seg-actions button {
+  display: inline-grid; place-items: center;
+  width: 26px; height: 24px; padding: 0;
+  border: 1px solid var(--paper-3); border-radius: 7px; background: var(--card);
+  color: var(--ink-2); cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.seg-actions button:hover:not(:disabled) { border-color: var(--accent, #8a6d3b); color: var(--accent, #8a6d3b); background: color-mix(in srgb, var(--accent, #8a6d3b) 7%, var(--card)); }
+.seg-actions button:disabled { opacity: .55; cursor: default; }
+
+/* ── 侧栏 tab 不换行 ── */
+.revside-tabs .chip { white-space: nowrap; }
+
+/* ── 目录页码修订表单：无边界——仅间距分隔，无描边 ── */
+.toc-editor-pageform { width: 100%; padding: 8px 4px 4px; display: flex; flex-direction: column; gap: 8px; }
+
+/* ── 顶栏页码跳转（工作台级能力：分页切换 / 滚动模式左侧跟随 + 落点闪烁） ── */
+.revpagejump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.revpagejump input {
+  width: 52px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.revpagejump em {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* 分页模式下被过滤段：不移除（页边界=目录页码坐标），降透明度示意非当前过滤集 */
+.revseg-dim { opacity: .5; }

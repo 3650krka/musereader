@@ -1,0 +1,148 @@
+/* WordWise 生词注释卡片（宿主层）样式。
+   纪律：src/index.css 正在另案施工，本文件集中承载卡片升级的全部新样式
+   （排版/展开态/resize 手柄/离屏测量盒）；同名旧规则由本文件后序覆盖。
+   iframe 内 ruby/rt 注入样式仍在 wordWiseInject.ts 内部字符串里。 */
+
+.word-wise-card {
+  position: fixed;
+  z-index: 97;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 0;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  background: var(--card, #fff);
+  border: 1px solid var(--paper-3, rgba(0, 0, 0, 0.1));
+  /* 高度投影走主题 token：亮色用暖墨黑（与全局投影族一致），
+     暗色用纯黑+加深透明度（material 暗面语义），不再单一硬编码。 */
+  box-shadow: var(--wwc-shadow, 0 18px 44px -14px rgb(var(--shadow-color) / 42%));
+  font-family: var(--font-sans);
+}
+
+[data-theme='dark'] .word-wise-card {
+  background: #222220;
+  border-color: rgba(255, 255, 255, 0.12);
+  --wwc-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.62);
+}
+
+/* ---- 头部：单词大字号 + 音标 + 档级徽章 ---- */
+.wwc-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.wwc-word { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.wwc-phonetic { font-size: 12px; color: var(--ink-3, var(--muted-current, #888)); }
+.wwc-level {
+  align-self: center;
+  font-size: 10.5px; font-weight: 600;
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--signal, #b45309); color: #fff;
+}
+.wwc-ai-tag { align-self: center; font-size: 10px; color: var(--signal, #b45309); letter-spacing: 0.05em; }
+.wwc-head-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+
+/* ---- 内容区：释义 + 例句（引号弱化） ---- */
+.wwc-body { margin-top: 8px; min-height: 0; flex: 1 1 auto; }
+/* 高度受限（展开/手动 resize）时内容区可滚动 */
+.word-wise-card-scroll .wwc-body { overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+.wwc-def { margin: 0; font-size: 13px; line-height: 1.65; white-space: pre-line; }
+/* 词库未收录的占位词条（learning 生词）：引导用 AI 语境义补全 */
+.wwc-def-empty { color: var(--ink-3, #999); font-style: italic; }
+/* ECDICT 完整翻译（展开态补充，去重后剩余行）：弱一档层次 */
+.wwc-def-alt { margin-top: 6px; color: var(--ink-2, inherit); opacity: .9; }
+/* 考试标签 / 牛津 / 柯林斯星级 */
+.wwc-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.wwc-chip {
+  font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 999px;
+  color: var(--ink-3, var(--muted-current, #888));
+  background: color-mix(in srgb, var(--ink, #222) 7%, transparent);
+}
+.wwc-chip-oxford { color: var(--accent, #8a6d3b); background: color-mix(in srgb, var(--accent, #8a6d3b) 12%, transparent); }
+.wwc-stars { font-size: 11px; letter-spacing: 1px; color: var(--signal, #b45309); }
+/* 词形变换 / 词根 / 词频（展开态补充信息行） */
+.wwc-forms, .wwc-root, .wwc-freq {
+  margin: 6px 0 0; font-size: 11.5px; line-height: 1.6;
+  color: var(--ink-3, var(--muted-current, #888));
+}
+.wwc-ctx {
+  margin: 8px 0 0;
+  font-size: 11.5px; line-height: 1.55;
+  color: var(--ink-4, var(--muted-current, #999));
+  font-family: var(--font-reading, inherit);
+  font-style: italic;
+}
+.wwc-ctx-mark { font-style: normal; color: var(--ink-3, #aaa); opacity: 0.7; }
+/* 例句译文：非斜体、稍深（与英文例句区分层次） */
+.wwc-ctx-zh { font-style: normal; color: var(--ink-3, var(--muted-current, #888)); margin-top: 4px; }
+
+/* ---- 发音按钮 ---- */
+.wwc-speak {
+  display: inline-grid; place-items: center; width: 22px; height: 22px;
+  border: 0; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  background: transparent; color: var(--accent, #8a6d3b);
+  transition: background .15s;
+}
+.wwc-speak:hover { background: color-mix(in srgb, var(--accent, #8a6d3b) 14%, transparent); }
+.wwc-speak-ctx { vertical-align: -4px; margin-left: 2px; opacity: .75; }
+.wwc-speak-ctx:hover { opacity: 1; }
+
+/* ---- AI 错误态：图标 + 信息 + 行内重试 ---- */
+.wwc-error {
+  margin: 8px 0 0; display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; line-height: 1.5;
+  color: var(--danger, #c0392b);
+  background: color-mix(in srgb, var(--danger, #c0392b) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger, #c0392b) 22%, transparent);
+  border-radius: 8px; padding: 6px 8px;
+}
+.wwc-error > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.wwc-retry {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  border: 0; border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  font-size: 11px; font-weight: 600;
+  background: color-mix(in srgb, var(--danger, #c0392b) 12%, transparent);
+  color: var(--danger, #c0392b);
+  transition: background .15s;
+}
+.wwc-retry:hover { background: color-mix(in srgb, var(--danger, #c0392b) 20%, transparent); }
+
+/* ---- 流式渲染：逐字上屏 + 光标 ---- */
+.wwc-stream { color: var(--ink-2, inherit); opacity: .92; }
+.wwc-cursor {
+  display: inline-block; width: 2px; height: 1em; margin-left: 2px;
+  background: var(--accent, #8a6d3b); vertical-align: -2px;
+  animation: wwc-blink 0.9s steps(1) infinite;
+}
+@keyframes wwc-blink { 50% { opacity: 0; } }
+.wwc-spin { animation: wwc-rotate 0.9s linear infinite; }
+@keyframes wwc-rotate { to { transform: rotate(360deg); } }
+
+/* ---- 操作按钮行（保持既有 iconbtn 语义） ---- */
+.wwc-actions { display: flex; align-items: center; gap: 6px; margin-top: 12px; flex: 0 0 auto; }
+.wwc-actions .iconbtn.on { background: var(--ink); color: var(--paper); }
+.wwc-busy { font-size: 11px; color: var(--ink-3, var(--muted-current, #888)); }
+
+/* ---- 展开态：加宽加长但不全屏 ---- */
+.word-wise-card-expanded { max-width: min(560px, 92vw); }
+.word-wise-card-expanded .wwc-resizer { display: none; }
+
+/* ---- 右下角 resize 手柄（拖拽改变宽高） ---- */
+.wwc-resizer {
+  position: absolute; right: 3px; bottom: 3px;
+  width: 14px; height: 14px;
+  cursor: nwse-resize; touch-action: none;
+  border-radius: 2px; opacity: 0.65;
+  background: linear-gradient(
+    135deg,
+    transparent 0 52%, var(--ink-3, #aaa) 52% 60%,
+    transparent 60% 72%, var(--ink-3, #aaa) 72% 80%,
+    transparent 80% 100%
+  );
+}
+.wwc-resizer:hover { opacity: 1; }
+
+/* ---- 离屏测量副本：边缘避让首帧需要自然尺寸；与正式卡片同排版约束 ---- */
+.word-wise-card.wwc-measure {
+  left: -9999px; top: 0;
+  z-index: -1; visibility: hidden; pointer-events: none;
+}

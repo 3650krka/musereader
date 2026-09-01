@@ -1,0 +1,104 @@
+/* 滑块：渐变族填充 + 辉光层的复合轨道 + 白盘深描边拇指。
+   渐变对/辉光色来自色系 token（--sc-a/--sc-b/--sc-glow，见 index.css 色系区），
+   组件自身不再硬编码——切换色系时滑块、进度条、进度环自动同族联动。
+   交互由覆盖全区的透明原生 input 承担（保留键盘步进），视觉层一律 pointer-events: none。 */
+.cslider {
+  position: relative;
+  height: 24px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+.cslider input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.cslider-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--paper-3);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+.cslider-glow {
+  position: absolute;
+  left: 0;
+  width: var(--pct, 0%);
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sc-a), var(--sc-b));
+  filter: blur(7px);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.cslider-fill {
+  position: absolute;
+  left: 0;
+  width: var(--pct, 0%);
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sc-a), var(--sc-b));
+  box-shadow: 0 1px 3px var(--sc-glow);
+  pointer-events: none;
+}
+.cslider-thumb {
+  position: absolute;
+  left: var(--pct, 0%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3.5px solid #18181b;
+  box-shadow: 0 4px 10px var(--sc-glow);
+  transform: translateX(-50%);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: none;
+}
+.cslider[data-active='1'] .cslider-thumb {
+  transform: translateX(-50%) scale(1.15);
+  border-color: var(--sc-a);
+}
+/* 键盘可达性：无描边设计下用柔和光环替代焦点框（与全局"聚焦不加边框"一致） */
+.cslider input:focus-visible ~ .cslider-thumb {
+  box-shadow: 0 0 0 5px var(--sc-glow), 0 4px 10px var(--sc-glow);
+}
+.cslider-tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: clamp(16px, var(--pct, 0%), calc(100% - 16px));
+  transform: translateX(-50%) translateY(4px);
+  background: #18181b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 7px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.cslider-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: #18181b;
+}
+.cslider:hover .cslider-tip,
+.cslider[data-active='1'] .cslider-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
