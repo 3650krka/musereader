@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 版本由 package.json 的 packageManager 字段选定（pnpm@10.x），
+      # 此处再指定 version 会触发 ERR_PNPM_BAD_PM_VERSION。
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 22

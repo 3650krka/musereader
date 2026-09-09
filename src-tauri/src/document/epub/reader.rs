@@ -127,7 +127,8 @@ fn path_from_epub_href(href: &str) -> Result<PathBuf, AppError> {
             Component::ParentDir | Component::RootDir => {
                 return Err(AppError::invalid_input("EPUB 章节路径越界"));
             }
-            #[cfg(windows)]
+            // `Component::Prefix` 在较新 std 中已不按平台 cfg 定义；
+            // 非 Windows 路径实际不会出现该变体，统一按越界拒绝即可保持穷尽匹配。
             Component::Prefix(_) => {
                 return Err(AppError::invalid_input("EPUB 章节路径包含盘符"));
             }
