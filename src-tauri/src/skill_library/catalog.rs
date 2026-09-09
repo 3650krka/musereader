@@ -7,18 +7,49 @@ use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// 默认提示词根目录解析。历史上只认 `CARGO_MANIFEST_DIR` 的上两级（仓库外兄弟目录），
+/// 那在编译期被烘焙进二进制：除开发机外任何安装环境都不存在，技能库播种会整体失败。
+/// 现按“显式覆盖 → 安装包内资源 → 仓库内资源 → 旧开发路径”顺序取第一个存在者。
 pub(super) fn resolve_default_prompts_root() -> Result<PathBuf, AppError> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let click_root = manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .ok_or_else(|| AppError::internal("解析 click 根目录失败"))?;
-    let prompts_root = click_root.join("prompts");
-    if prompts_root.exists() {
-        Ok(prompts_root)
-    } else {
-        Err(AppError::not_found("缺少默认 prompts 目录"))
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Ok(override_dir) = std::env::var("MUSEREADER_PROMPTS_DIR") {
+        if !override_dir.trim().is_empty() {
+            candidates.push(PathBuf::from(override_dir));
+        }
     }
+
+    // 发布安装：Tauri 将 bundle.resources 释放在可执行文件旁的 resources/ 下。
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidates.push(exe_dir.join("resources").join("prompts"));
+            candidates.push(exe_dir.join("prompts"));
+        }
+    }
+
+    // 仓库内资源：开发与 CI 直接命中，不再依赖工作区外部目录。
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    candidates.push(manifest_dir.join("resources").join("prompts"));
+
+    // 兼容旧开发布局（click/prompts 为仓库兄弟目录）。
+    if let Some(click_root) = manifest_dir.parent().and_then(Path::parent) {
+        candidates.push(click_root.join("prompts"));
+    }
+
+    for candidate in &candidates {
+        if candidate.is_dir() {
+            return Ok(candidate.clone());
+        }
+    }
+
+    Err(AppError::not_found(format!(
+        "缺少默认 prompts 目录（已尝试：{}）",
+        candidates
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )))
 }
 
 pub(super) fn parse_skill_id(
