@@ -103,7 +103,9 @@ fn reset_chunk_for_retranslation(chunk: &mut super::super::types::ChunkState) {
 
 fn is_high_confidence_untranslated_body_chunk(source: &str, translated: &str) -> bool {
     if contains_cjk(translated) {
-        return false;
+        // 半译块：译文含中文但仍夹带整段未译英文（限流/部分失败时管线保留原文块的形态），
+        // 若按"含中文即已译"放过，原生重试将永远无块可补（实测 3 轮各 6s 空转）。
+        return has_untranslated_english_block(translated);
     }
     if ascii_word_count(source) < 8 || source.chars().count() < 48 {
         return false;
@@ -120,6 +122,23 @@ fn is_high_confidence_untranslated_body_chunk(source: &str, translated: &str) ->
         + shared_suffix_len(&normalized_source, &normalized_translated);
     let shorter = normalized_source.len().min(normalized_translated.len());
     overlap >= shorter.saturating_mul(9) / 10
+}
+
+/// 半译块判定：译文按行存在"英文词数多且几乎无中文"的整段
+/// （管线部分失败时回退原文的形态）。行级判据，与批量验收闸同一标准。
+fn has_untranslated_english_block(translated: &str) -> bool {
+    translated.split('\n').any(|para| {
+        let cjk_count = para
+            .chars()
+            .filter(|ch| {
+                ('\u{4E00}'..='\u{9FFF}').contains(ch)
+                    || ('\u{3400}'..='\u{4DBF}').contains(ch)
+                    || ('\u{F900}'..='\u{FAFF}').contains(ch)
+            })
+            .count();
+        let en_words = ascii_word_count(para);
+        en_words > 30 && en_words > cjk_count * 3
+    })
 }
 
 fn normalize_resume_text(value: &str) -> String {
@@ -202,6 +221,87 @@ mod tests {
             checkpoint.chunks[0].processing_stage,
             Some(ChunkProcessingStage::Pending)
         );
+    }
+
+    #[test]
+    fn invalidates_partially_translated_chunk_with_untranslated_english_block() {
+        // 半译块：开头有中文，但夹带整段未译英文（>30 英文词且几乎无中文）
+        let english_block = (0..8)
+            .map(|_| "The silent house stood alone upon the windy hill beyond the ancient village")
+            .collect::<Vec<_>>()
+            .join(" ");
+        let translated = format!("夜幕降临，风穿过空荡的走廊。\n\n{english_block}");
+        let mut checkpoint = ChunkCheckpoint {
+            version: 1,
+            task_id: "task".to_string(),
+            source_pdf_path: "demo.pdf".to_string(),
+            article_type: "fiction".to_string(),
+            system_prompt_hash: "hash".to_string(),
+            skill_ids: Vec::new(),
+            translation_context: None,
+            source_hash: "source".to_string(),
+            chunk_size: 120,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            source_markdown_path: "source.md".to_string(),
+            chunks: vec![ChunkState {
+                index: 0,
+                source: "placeholder source with enough words to pass the length gate easily".to_string(),
+                translated: Some(translated),
+                confirmed_terms: Vec::new(),
+                attempts: 1,
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+                segment_kind: ChunkSegmentKind::Body,
+                processing_stage: Some(ChunkProcessingStage::Translated),
+            }],
+            write_metrics: Default::default(),
+            delta_sync: Default::default(),
+        };
+
+        let invalidated = invalidate_polluted_translations(&mut checkpoint);
+
+        assert_eq!(invalidated, 1);
+        assert!(checkpoint.chunks[0].translated.is_none());
+        assert_eq!(
+            checkpoint.chunks[0].processing_stage,
+            Some(ChunkProcessingStage::Pending)
+        );
+    }
+
+    #[test]
+    fn keeps_partially_translated_chunk_with_short_english_names_only() {
+        // 对照组：中文译文中只残留少量英文专名（非整段未译），不应失效
+        let mut checkpoint = ChunkCheckpoint {
+            version: 1,
+            task_id: "task".to_string(),
+            source_pdf_path: "demo.pdf".to_string(),
+            article_type: "fiction".to_string(),
+            system_prompt_hash: "hash".to_string(),
+            skill_ids: Vec::new(),
+            translation_context: None,
+            source_hash: "source".to_string(),
+            chunk_size: 120,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            source_markdown_path: "source.md".to_string(),
+            chunks: vec![ChunkState {
+                index: 0,
+                source: "placeholder source with enough words to pass the length gate easily".to_string(),
+                translated: Some("萨坦普拉·泽罗斯在黎明前穿过广场，来到了 Tsathoggua 的神殿门前。".to_string()),
+                confirmed_terms: Vec::new(),
+                attempts: 1,
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+                segment_kind: ChunkSegmentKind::Body,
+                processing_stage: Some(ChunkProcessingStage::Translated),
+            }],
+            write_metrics: Default::default(),
+            delta_sync: Default::default(),
+        };
+
+        let invalidated = invalidate_polluted_translations(&mut checkpoint);
+
+        assert_eq!(invalidated, 0);
+        assert!(checkpoint.chunks[0].translated.is_some());
     }
 
     #[test]

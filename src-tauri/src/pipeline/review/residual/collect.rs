@@ -23,6 +23,7 @@ pub(super) fn collect_residual_review_chunks(
     collect_residual_review_candidates(checkpoint).chunks
 }
 
+#[cfg(test)]
 pub(super) fn collect_pending_residual_review_stats(
     checkpoint: &ChunkCheckpoint,
 ) -> ResidualReviewStats {
@@ -45,15 +46,21 @@ pub(crate) fn collect_residual_review_stats(checkpoint: &ChunkCheckpoint) -> Res
     collect_residual_review_stats_for_all_body_chunks(checkpoint)
 }
 
+/// 单波审查的候选块数上限：大面积坏块时的安全阀，避免审查 LLM 调用数失控。
+const MAX_REVIEW_CANDIDATE_CHUNKS: usize = 64;
+/// 全局词额均摊时的每块保底词数：份额再小也要带几个词作为修复线索。
+const MIN_CHUNK_TERM_SHARE: usize = 8;
+
 struct ResidualReviewCandidates {
     chunks: Vec<ResidualReviewChunk>,
 }
 
 fn collect_residual_review_candidates(checkpoint: &ChunkCheckpoint) -> ResidualReviewCandidates {
-    let mut chunks = Vec::new();
-    let mut total_terms = 0usize;
     let limit = residual_review_candidate_limit(&checkpoint.article_type);
 
+    // 第一遍：逐块收集候选词（每块上限 = 全局限额）。
+    // 不在此做全局截断——否则首个脏块会耗尽全局预算，后续块永远轮不到（预算饥饿）。
+    let mut chunks = Vec::new();
     for chunk in &checkpoint.chunks {
         if !should_review_chunk(checkpoint, chunk) {
             continue;
@@ -65,10 +72,8 @@ fn collect_residual_review_candidates(checkpoint: &ChunkCheckpoint) -> ResidualR
             &chunk.source,
             translated,
             &patch_terms,
-            limit.saturating_sub(total_terms),
+            limit,
         );
-        total_terms += terms.len();
-
         if !terms.is_empty() {
             chunks.push(ResidualReviewChunk {
                 chunk_index: chunk.index,
@@ -78,8 +83,18 @@ fn collect_residual_review_candidates(checkpoint: &ChunkCheckpoint) -> ResidualR
                 patch_terms,
             });
         }
-        if total_terms >= limit {
+        if chunks.len() >= MAX_REVIEW_CANDIDATE_CHUNKS {
             break;
+        }
+    }
+
+    // 第二遍：全局词额均摊到各候选块（含每块保底）。词表只是修复线索，
+    // LLM 能看到整块原文与译文，少量词即可提示"此块有残留需整体修复"。
+    let total_terms: usize = chunks.iter().map(|chunk| chunk.terms.len()).sum();
+    if total_terms > limit && !chunks.is_empty() {
+        let share = (limit / chunks.len()).max(MIN_CHUNK_TERM_SHARE);
+        for chunk in &mut chunks {
+            chunk.terms.truncate(share);
         }
     }
     ResidualReviewCandidates { chunks }
@@ -634,6 +649,50 @@ mod tests {
     }
 
     #[test]
+    fn residual_review_shares_budget_so_later_chunks_are_not_starved() {
+        // 回归：首块含大量残留词时，旧逻辑 total_terms>=limit 即 break，
+        // 后续块永远进不了候选（001 事件：96 词全被 chunk 0 独占，chunk 1/6 漏审）。
+        // 新逻辑：全局限额均摊到各候选块，每块保底 MIN_CHUNK_TERM_SHARE 个词。
+        let make_dirty = |index: usize| {
+            let mut c = chunk(
+                index,
+                "The impenetrable darkness covered the harbor and the silent watchers waited behind the broken wooden fence near the old station house.",
+                // 译文夹带 10 个英文残留词，14 块共 140 词 > 96 全局限额，旧逻辑会在第 10 块后 break
+                Some("那 impenetrable 黑暗笼罩 harbor，silent 守望者 waited 在 broken 栅栏 wooden 后面，near 老 station 屋子 house 旁。"),
+                ChunkSegmentKind::Body,
+            );
+            c.processing_stage = Some(ChunkProcessingStage::TermConsistencyApplied);
+            c
+        };
+        let checkpoint = ChunkCheckpoint {
+            version: 1,
+            task_id: "test".to_string(),
+            source_pdf_path: "sample.pdf".to_string(),
+            article_type: "fiction".to_string(),
+            system_prompt_hash: "hash".to_string(),
+            skill_ids: vec![],
+            translation_context: None,
+            source_hash: "hash".to_string(),
+            chunk_size: 200,
+            created_at: "now".to_string(),
+            updated_at: "now".to_string(),
+            source_markdown_path: "source.md".to_string(),
+            write_metrics: Default::default(),
+            delta_sync: Default::default(),
+            chunks: (0..14).map(make_dirty).collect(),
+        };
+
+        let review_chunks = collect_residual_review_chunks(&checkpoint);
+
+        // 全部 14 个脏块都必须进候选，不允许首块独占预算
+        assert_eq!(review_chunks.len(), 14);
+        // 每块都保留了修复线索（至少 1 个词）
+        for rc in &review_chunks {
+            assert!(!rc.terms.is_empty(), "chunk {} lost all terms", rc.chunk_index);
+        }
+    }
+
+    #[test]
     fn residual_review_collects_static_glossary_patch_terms() {
         let mut reviewable = chunk(
             1,
@@ -739,8 +798,10 @@ mod tests {
             target: "卡法克斯海军上将".to_string(),
         }];
 
+        // 用 blog（非故事世界）验证补丁术语路径：叙事类 TitleCase 仍豁免，
+        // 混合 token 只能由补丁路径捕获；小说类已由通用检测器直接捕获（见 detect.rs）。
         let terms = collect_chunk_residual_terms_with_patch_terms(
-            "fiction",
+            "blog",
             "Admiral Carfax stood beside the bunk.",
             "卡法克斯 Admiral 站在铺位旁。",
             &patch_terms,

@@ -23,6 +23,7 @@ pub fn detect_residual_english_terms(
     translated: &str,
 ) -> Vec<ResidualEnglishTerm> {
     let policy = ArticlePolicy::from_article_type(article_type);
+    let story_world = ArticlePolicy::has_story_world(article_type);
     let masked_source = mask_non_residual_spans(source, policy);
     let masked_translated = mask_non_residual_spans(translated, policy);
     let source_terms = collect_ascii_word_tokens_with_spans(&masked_source)
@@ -32,7 +33,7 @@ pub fn detect_residual_english_terms(
     let mut terms = BTreeMap::<String, ResidualAccumulator>::new();
 
     for token in collect_ascii_word_tokens_with_spans(&masked_translated) {
-        if should_ignore_residual_english_token(&token.text, policy) {
+        if should_ignore_residual_english_token(&token.text, policy, story_world) {
             continue;
         }
         if !source_terms.contains(&token.text.to_ascii_lowercase()) {
@@ -446,7 +447,11 @@ fn push_ascii_word_token(chars: &[char], start: usize, end: usize, tokens: &mut 
     });
 }
 
-fn should_ignore_residual_english_token(token: &str, policy: ArticlePolicy) -> bool {
+fn should_ignore_residual_english_token(
+    token: &str,
+    policy: ArticlePolicy,
+    story_world: bool,
+) -> bool {
     let lower = token.to_ascii_lowercase();
     if matches!(
         lower.as_str(),
@@ -560,6 +565,11 @@ fn should_ignore_residual_english_token(token: &str, policy: ArticlePolicy) -> b
     }
     if token.chars().all(|ch| ch.is_ascii_uppercase()) {
         return true;
+    }
+    // 故事世界文本（fiction/children）：专名强制音译，TitleCase 不再豁免——
+    // Marlin 这类残留必须送审修复；blog/news/general 仍允许保留现实品牌名。
+    if story_world {
+        return false;
     }
     policy.is_narrative() && looks_like_preserved_titlecase_token(token)
 }
@@ -698,5 +708,36 @@ mod tests {
         assert!(detected.contains(&"rattling"), "terms={terms:?}");
         assert!(detected.contains(&"deliberation"), "terms={terms:?}");
         assert!(detected.contains(&"looming"), "terms={terms:?}");
+    }
+
+    #[test]
+    fn story_world_flags_titlecase_brand_for_forced_transliteration() {
+        // 回归：小说/儿童文本专名强制音译，TitleCase 品牌名不再豁免
+        // （001 事故：Marlin 步枪的 Marlin 被 looks_like_preserved_titlecase_token 放过）
+        let source = "In a corner stood my Marlin rifle, with ten cartridges in the magazine.";
+        let translated = "客厅角落里放着我的 Marlin 步枪，弹匧里有十发子弹。";
+
+        let terms = detect_residual_english_terms("fiction", source, translated);
+        let detected = terms
+            .iter()
+            .map(|term| term.term.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(detected.contains(&"marlin"), "terms={terms:?}");
+    }
+
+    #[test]
+    fn non_story_world_narrative_still_allows_titlecase_proper_nouns() {
+        // 对照：blog/news/general 不是故事世界，仍允许保留 TitleCase 专名（如 iPhone）
+        let source = "In a corner stood my Marlin rifle, with ten cartridges in the magazine.";
+        let translated = "客厅角落里放着我的 Marlin 步枪，弹匧里有十发子弹。";
+
+        let terms = detect_residual_english_terms("blog", source, translated);
+        let detected = terms
+            .iter()
+            .map(|term| term.term.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(!detected.contains(&"marlin"), "terms={terms:?}");
     }
 }

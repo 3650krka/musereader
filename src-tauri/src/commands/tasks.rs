@@ -13,6 +13,8 @@ mod runner_controls;
 mod runner_state;
 mod state;
 mod types;
+#[cfg(test)]
+mod batch_e2e;
 
 pub(crate) use events::{emit_task_progress, TaskEventSink};
 use files::{cleanup_artifact_dir, create_artifact_dir, delete_task_files, ensure_document_path};

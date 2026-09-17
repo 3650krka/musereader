@@ -3,8 +3,8 @@ use super::super::super::context::repair_canonical_proper_nouns;
 #[cfg(test)]
 use super::collect::collect_chunk_residual_terms;
 use super::collect::{
-    collect_chunk_residual_terms_with_patch_terms, collect_pending_residual_review_stats,
-    collect_residual_review_chunks,
+    collect_chunk_residual_terms_with_patch_terms, collect_residual_review_chunks,
+    collect_residual_review_stats,
 };
 use super::parse::parse_residual_repair;
 use crate::llm::SensenovaClient;
@@ -149,7 +149,9 @@ fn record_second_residual_check(
     checkpoint: &ChunkCheckpoint,
     record_event: &mut impl FnMut(&str, &str, u8) -> Result<(), AppError>,
 ) -> Result<(), AppError> {
-    let stats = collect_pending_residual_review_stats(checkpoint);
+    // 按译文实测统计，不按处理阶段过滤：审查波次末尾所有块已被推进到
+    // ResidualReviewed，若按阶段过滤会恒报 0（漏报真实残留）。
+    let stats = collect_residual_review_stats(checkpoint);
     record_event(
         "validation_review_second_check",
         &format!(

@@ -35,7 +35,8 @@ impl ArticlePolicy {
 
     /// 叙事类文本（fiction/children/blog/news/general）：
     /// - 人名/地名等故事世界专有名词做本地化音译，并跨 chunk 传播
-    /// - 残留英文检测允许保留 TitleCase 专有名词
+    /// - 残留英文检测允许保留 TitleCase 专有名词（仅 blog/news/general 等现实叙事文本；
+    ///   故事世界文本 fiction/children 强制音译，TitleCase 不豁免，见 detect.rs）
     pub fn is_narrative(self) -> bool {
         matches!(self, Self::Narrative)
     }
