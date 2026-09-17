@@ -26,21 +26,23 @@ Most readers assume the book is already translated. MuseReader handles the harde
 
 After import, every book runs through a pipeline designed for long documents (scanned PDFs get an OCR pre-pass first):
 
-**chunking → translation → term-consistency repair → residual-language review → layout rendering → artifact writing**
+**chunking → parallel translation → term-consistency repair → residual-language review → layout rendering → artifact writing**
 
-Each stage exists to kill one real pain point of whole-book translation:
+Translating page by page has three hard failure modes: **drifting names, untranslated leftovers nobody catches, and a single interruption throwing away hours of work.** Every stage below is an engineering answer to one of them:
 
 | Stage | What it solves for you |
 |---|---|
-| **Smart chunking + chapter-level parallelism** | Multiple workers translate one book at once, with live event-stream progress — big books are no longer a black-box half-hour wait |
-| **Automatic glossary extraction & locking** | Names, places, organizations and domain terms stay consistent book-wide; pin a translation and the model won't second-guess it |
-| **Term-consistency repair** | After the whole book is done, it re-scans and reconciles any name/term that drifted — the step that separates "whole-book translation" from "paragraph-by-paragraph translation" |
-| **Residual-language review** | Untranslated source spans left in the target are detected and patched in place, with a checkable validation report |
-| **Checkpointed resume (source-hash validated)** | Progress is persisted; if the source file is unchanged it resumes from the checkpoint, only recomputing when the file actually changed |
-| **Multi-key rotation pools** | Keys rotate automatically, failing ones are de-weighted, and concurrency adapts on 429 rate limits — flaky endpoints get used as stable throughput |
+| **Smart chunking + chapter-level parallelism** | Chunks are cut on semantic boundaries and tagged by segment kind (body / references / tables); multiple workers translate one book at once with a live event stream — big books become observable incremental output, not a black-box wait |
+| **Automatic glossary extraction & cross-chunk propagation** | Names, places, organizations and domain terms are extracted during translation and unified book-wide; newly confirmed terms are back-filled into already-translated chunks as wave patches — no re-translating the whole book for one word |
+| **Term-consistency repair** | A whole-book re-scan detects one source name rendered as several different variants and reconciles them; pin a translation and the model won't second-guess it |
+| **Residual-language review (two-tier safety net)** | ① *Whole-paragraph misses*: lines that are dense English with no Chinese are detected and reset for retranslation. ② *Word-level residue*: English words embedded in Chinese sentences (e.g. `Marlin rifle`) are collected, budgeted fairly across chunks, and repaired by a targeted LLM pass. A second pass re-measures the actual translation text and reports what truly remains |
+| **Genre-aware policies** | 11 article types run their own rules: fiction/children enforce transliteration of story-world names (no leftover Latin brand words); academic/legal keep DOIs, citations and standard names, with reference sections masked from false positives |
+| **Checkpointed resume + incremental retry** | Every chunk carries a persisted processing stage (translated → term-checked → reviewed → mergeable). Interruptions resume from the checkpoint; on load, polluted translations (mojibake, untranslated blocks, half-translated blocks) are invalidated automatically — a retry re-translates only the bad chunks, never the whole book |
+| **Multi-key rotation pools + adaptive rate limiting** | Each route (provider × key) has its real throughput learned continuously and gets concurrency by water level; failing routes are de-weighted and 429s back off — flaky endpoints get used as stable throughput |
 | **Layout rendering** | Emits a true-XHTML EPUB (translated / bilingual), preserving tables, figures, captions and TOC structure — never downgraded to plain text |
+| **Auditable artifacts** | Every task persists a checkpoint, a full event stream, quality metrics and a validation report — progress, failures and residual findings are all checkable item by item |
 
-> In short: others do "translate this passage"; MuseReader does "hand you this book — consistent throughout, nothing left untranslated, typeset properly, and ready to keep reading and learning from."
+> In short: others do "translate this passage"; MuseReader does "hand you this book — consistent throughout, nothing left untranslated, typeset properly, resumable, auditable, and ready to keep reading and learning from."
 
 ## Core capabilities
 
